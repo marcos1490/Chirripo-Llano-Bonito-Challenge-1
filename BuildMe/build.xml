@@ -3,9 +3,23 @@
 
 	<!-- Sets variables which can later be used. -->
 	<!-- The value of a property is accessed via ${} -->
-    <property name="src.dir" value="src"/>
+	<tstamp>
+		<format property="TODAY_CR"
+				pattern="yyyyMMddHHmm"
+		        locale="cn,CN"/>
+	</tstamp>
+	<property name="src.dir" value="src"/>
 	<property name="build.dir" location="bin" />
 	<property name="dist.dir" location="dist" />
+    <property name="email.host" value="smtp.gmail.com"/>
+	<property name="email.port" value="465"/>
+	<property name="email.success.subject" value="BuildMe-${TODAY_CR} SUCCESS"/>
+	<property name="email.failure.subject" value="BuildMe-${TODAY_CR} FAIL"/>
+	<property name="email.from" value="kristianvacr@gmail.com"/>
+	<property name="email.password" value="123456abC"/>
+	<property name="email.to" value="kristianvacr@gmail.com"/>
+	
+	
 	
 	<!-- Variables used for JUnit testing -->
 	<property name="test.dir" location="test" />
@@ -14,6 +28,7 @@
  	<!-- Define the classpath which includes the junit.jar and the classes after compiling-->
 	<path id="junit.class.path">
 		<pathelement location="lib/junit-4.11.jar" />
+		<pathelement location="lib/hamcrest-core-1.3.jar" />
 	    <pathelement location="${build.dir}" />
 	</path>
 	
@@ -30,17 +45,25 @@
 		<mkdir dir="${dist.dir}" />
 	    <mkdir dir="${test.report.dir}" />
 	</target>
-	
-	<!-- Compiles the java code (including the usage of library for JUnit) -->
+
+	<!-- Compiles the java code-->
 	<target name="compile" depends="clean, makedir">
-		<javac srcdir="${src.dir}" destdir="${build.dir}">
-			<classpath refid="junit.class.path" />
+		<javac srcdir="${src.dir}" destdir="${build.dir}" errorProperty="compile.fails">
+	    </javac>
+	</target>
+	
+	<!-- Compiles the java code for JUnit -->
+	<target name="compileTest" depends="clean, makedir">		
+		<javac srcdir="${test.dir}" destdir="${build.dir}" includeantruntime="true" debug="true" >
+			<classpath>
+		    	<path id="org.junit" location="lib/junit-4.11.jar" /> 
+		  	</classpath>
 	    </javac>
 	</target>
 	
 	<!--Creates the deployable jar file-->  
 	<target name="jar" depends="compile">
-		<jar destfile="${dist.dir}\com.avantica.chirripo.ant.jar" basedir="${build.dir}">
+		<jar destfile="${dist.dir}\BuildMe-${TODAY_CR}.zip" basedir="${build.dir}">
 			<manifest>
 		    	<attribute name="Main-Class" value="com.avantica.chirripo.BuildMe" />
 			</manifest>
@@ -49,20 +72,45 @@
 	
 	<!-- Run the JUnit Tests -->
 	<!-- Output is XML, could also be plain-->
-	<target name="junit" depends="compile">
-		<junit printsummary="on">
+	<target name="junit" depends="compileTest">
+		<junit printsummary="yes" showoutput="yes" haltonerror="true" haltonfailure="true" failureproperty="compile.fails" errorproperty="compile.fails">
 			<classpath refid="junit.class.path" />
-		    <formatter type="xml" />
-			<batchtest todir="${test.report.dir}">
+			
+			<formatter type="plain"/>
+						
+			<batchtest fork="yes" todir="${test.report.dir}">
 				<fileset dir="${test.dir}">
-		    		<include name="**/*Test*" />
+		    		<include name="**/*Test*.java" />
 				</fileset>
 			</batchtest>
 		</junit>
-	</target>		
+	</target>	
 	
-	<target name="main" depends="jar, junit">
-	    <description>Main target</description>
+	
+	<!-- Send email when build process fails-->
+	<fail>
+		<condition>
+	        	<isset property="compile.fails"/>
+		</condition>
+	</fail>
+	<target name="send.failure.mail" if="compile.fails">
+	    <echo message="Compile process failed"/>
+		<mail mailhost="${email.host}" mailport="${email.port}" subject="${email.failure.subject}" ssl="true"
+			from="${email.from}" tolist="${email.to}" user="${email.from}" password="${email.password}" 
+			encoding="mime" messagemimetype="text/html" >
+			<message>Your message here</message> 
+		</mail> 
 	</target>
 	
+
+	<target name="main" depends="jar, junit">
+		
+		<!-- Send email when build process is successful-->
+		<mail mailhost="${email.host}" mailport="${email.port}" subject="${email.success.subject}" ssl="true"
+		      from="${email.from}" tolist="${email.to}" user="${email.from}" password="${email.password}" 
+		      encoding="mime" messagemimetype="text/html" >
+		   <message>Your message here</message> 
+		</mail> 
+	</target>
+
 </project>
