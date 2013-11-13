@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project name="BuildMeTask" basedir="." default="main">
+
+	<!-- Sets variables which can later be used. -->
+	<!-- The value of a property is accessed via ${} -->
+    <property name="src.dir" value="src"/>
+	<property name="build.dir" location="bin" />
+	<property name="dist.dir" location="dist" />
+	
+	<!-- Variables used for JUnit testing -->
+	<property name="test.dir" location="test" />
+	<property name="test.report.dir" location="testreport" />
+	
+ 	<!-- Define the classpath which includes the junit.jar and the classes after compiling-->
+	<path id="junit.class.path">
+		<pathelement location="lib/junit-4.11.jar" />
+	    <pathelement location="${build.dir}" />
+	</path>
+	
+	<!-- Deletes the existing build and dist directory-->
+    <target name="clean">
+    	<delete dir="${build.dir}" />
+    	<delete dir="${dist.dir}" />
+    	<delete dir="${test.report.dir}" />
+    </target>
+	
+	<!-- Creates the  build and dist directory-->
+	<target name="makedir">
+		<mkdir dir="${build.dir}" />
+		<mkdir dir="${dist.dir}" />
+	    <mkdir dir="${test.report.dir}" />
+	</target>
+	
+	<!-- Compiles the java code (including the usage of library for JUnit) -->
+	<target name="compile" depends="clean, makedir">
+		<javac srcdir="${src.dir}" destdir="${build.dir}">
+			<classpath refid="junit.class.path" />
+	    </javac>
+	</target>
+	
+	<!--Creates the deployable jar file-->  
+	<target name="jar" depends="compile">
+		<jar destfile="${dist.dir}\com.avantica.chirripo.ant.jar" basedir="${build.dir}">
+			<manifest>
+		    	<attribute name="Main-Class" value="com.avantica.chirripo.BuildMe" />
+			</manifest>
+		</jar>
+	</target>
+	
+	<!-- Run the JUnit Tests -->
+	<!-- Output is XML, could also be plain-->
+	<target name="junit" depends="compile">
+		<junit printsummary="on">
+			<classpath refid="junit.class.path" />
+		    <formatter type="xml" />
+			<batchtest todir="${test.report.dir}">
+				<fileset dir="${test.dir}">
+		    		<include name="**/*Test*" />
+				</fileset>
+			</batchtest>
+		</junit>
+	</target>		
+	
+	<target name="main" depends="jar, junit">
+	    <description>Main target</description>
+	</target>
+	
+</project>
