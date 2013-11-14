@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <project name="BuildMeTask" basedir="." default="main">
 
+	<taskdef resource="net/sf/antcontrib/antlib.xml"/>
 	<!-- Sets variables which can later be used. -->
 	<!-- The value of a property is accessed via ${} -->
 	<tstamp>
@@ -15,9 +16,9 @@
 	<property name="email.port" value="465"/>
 	<property name="email.success.subject" value="BuildMe-${TODAY_CR} SUCCESS"/>
 	<property name="email.failure.subject" value="BuildMe-${TODAY_CR} FAIL"/>
-	<property name="email.from" value="kristianvacr@gmail.com"/>
+	<property name="email.from" value="test.chirripo@gmail.com"/>
 	<property name="email.password" value="123456abC"/>
-	<property name="email.to" value="kristianvacr@gmail.com"/>
+	<property name="email.to" value="test.chirripo@gmail.com"/>
 	
 	
 	
@@ -48,17 +49,29 @@
 
 	<!-- Compiles the java code-->
 	<target name="compile" depends="clean, makedir">
-		<javac srcdir="${src.dir}" destdir="${build.dir}" errorProperty="compile.fails">
-	    </javac>
+		<trycatch reference="exception_ref">
+			<try>
+				<javac srcdir="${src.dir}" destdir="${build.dir}" errorProperty="compile.fails" includeantruntime="true">
+				</javac>
+				<javac srcdir="${test.dir}" destdir="${build.dir}" includeantruntime="true" debug="true" >
+					<classpath>
+				    	<path id="org.junit" location="lib/junit-4.11.jar" /> 
+				  	</classpath>
+			    </javac>
+			</try>
+			<catch>
+				<property name="exception" refid="exception_ref" />
+				<property name="message" value="Error building the java code in :${line.separator}${exception}" />
+				<echo message="${message}" /> 
+				<antcall target="send.failure.mail" />
+				<fail message="${message}" />
+			</catch>
+		</trycatch>
 	</target>
 	
 	<!-- Compiles the java code for JUnit -->
 	<target name="compileTest" depends="clean, makedir">		
-		<javac srcdir="${test.dir}" destdir="${build.dir}" includeantruntime="true" debug="true" >
-			<classpath>
-		    	<path id="org.junit" location="lib/junit-4.11.jar" /> 
-		  	</classpath>
-	    </javac>
+		
 	</target>
 	
 	<!--Creates the deployable jar file-->  
@@ -72,45 +85,49 @@
 	
 	<!-- Run the JUnit Tests -->
 	<!-- Output is XML, could also be plain-->
-	<target name="junit" depends="compileTest">
-		<junit printsummary="yes" showoutput="yes" haltonerror="true" haltonfailure="true" failureproperty="compile.fails" errorproperty="compile.fails">
-			<classpath refid="junit.class.path" />
-			
-			<formatter type="plain"/>
-						
-			<batchtest fork="yes" todir="${test.report.dir}">
-				<fileset dir="${test.dir}">
-		    		<include name="**/*Test*.java" />
-				</fileset>
-			</batchtest>
-		</junit>
+	<target name="junit" depends="jar">
+		<trycatch reference="exception_ref">
+			<try>
+				<junit printsummary="yes" showoutput="yes" haltonerror="true" haltonfailure="true" >
+					<classpath refid="junit.class.path" />
+					
+					<formatter type="plain"/>
+								
+					<batchtest fork="yes" todir="${test.report.dir}">
+						<fileset dir="${test.dir}">
+				    		<include name="**/*Test*.java" />
+						</fileset>
+					</batchtest>
+				</junit>
+			</try>
+			<catch>
+				<property name="exception" refid="exception_ref" />
+				<property name="message" value="Error running JUnit tests in :${line.separator}${exception}" />
+				<antcall target="send.failure.mail" />
+				<fail message="${message}" />
+			</catch>					
+		</trycatch>
 	</target>	
+					
 	
-	
-	<!-- Send email when build process fails-->
-	<fail>
-		<condition>
-	        	<isset property="compile.fails"/>
-		</condition>
-	</fail>
-	<target name="send.failure.mail" if="compile.fails">
-	    <echo message="Compile process failed"/>
+	<!-- Send email when build process fails-->	
+	<target name="send.failure.mail">
 		<mail mailhost="${email.host}" mailport="${email.port}" subject="${email.failure.subject}" ssl="true"
 			from="${email.from}" tolist="${email.to}" user="${email.from}" password="${email.password}" 
 			encoding="mime" messagemimetype="text/html" >
-			<message>Your message here</message> 
+			<message>${message}</message> 
 		</mail> 
 	</target>
 	
 
-	<target name="main" depends="jar, junit">
-		
+	<target name="main" depends="junit">		
 		<!-- Send email when build process is successful-->
 		<mail mailhost="${email.host}" mailport="${email.port}" subject="${email.success.subject}" ssl="true"
 		      from="${email.from}" tolist="${email.to}" user="${email.from}" password="${email.password}" 
 		      encoding="mime" messagemimetype="text/html" >
-		   <message>Your message here</message> 
+		   <message>Ant build and JUnit tests were successful!</message> 
 		</mail> 
 	</target>
-
+	
+										
 </project>
